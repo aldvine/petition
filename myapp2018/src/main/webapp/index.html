@@ -1,28 +1,181 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<html>
+
 <head>
-<meta http-equiv="content-type"
-	content="application/xhtml+xml; charset=UTF-8" />
-<title>Hello App Engine</title>
+	<meta charset="UTF-8">
+	<title>First App Mythrill</title>
 </head>
 
 <body>
-	<h1>Web and Cloud</h1>
-
-	<li><a href='/hello'>The servlet Hello world</a>
-	<li><a href='/index2.html'>Scores with React</a>
-	<li><a href='/index3.html'>Scores with Mithril</a>
-	<li><a href='/friends'>Populate the Friend table</a>
-	<li><a href='/query'>Query the Friend table</a>
-
-		<h1>Fetch scores below:</h1>
 
 
-		<p id="toto"></p> <script>
-    const url = "https://sobike44.appspot.com/_ah/api/myApi/v1/entity/macron"
-    fetch(url)
-    .then(response => response.text())
-    .then(data => document.getElementById('toto').innerHTML = data)
-  </script>
+	<script src="https://unpkg.com/mithril/mithril.js"></script>
+	<script>
+		var root= "http://localhost:8080/_ah/api/myApi/v1" 
+	/* 	var root= "https://cloud-miage.appspot.com/_ah/api/myApi/v1" */
+
+		var des1={
+			data:0,
+			getRandom: function () {
+				return m.request({
+					method: "POST",
+					url: root+"/addPetition"
+				})
+					.then(function (result) {
+						console.log(result);
+						des1.data = result.result
+					})
+			},
+		}
+
+		var des2={
+			data:0,
+			getRandom: function () {
+				return m.request({
+					method: "GET",
+					url: root+"/getPetition"
+				})
+					.then(function (result) {
+						console.log(result);
+						des2.data = result.result
+					})
+			},
+		}
+
+
+		var Score = {
+			count: 0,
+
+			list: [],
+			loadList: function () {
+				return m.request({
+					method: "GET",
+					url: root+"/entity/titi"
+				})
+					.then(function (result) {
+						Score.list = result.items
+						console.log("got:", result.items)
+						m.redraw(true) // force
+					})
+			},
+
+			current: {
+				score: 0
+			},
+			play: function () {
+
+				return m.request({
+					method: "POST",
+					url: root+"/random"
+				})
+					.then(function (result) {
+						console.log("got:", result)
+
+						// Score.current.score = result
+					})
+			},
+			save: function () {
+				console.log("saving...", Score.current)
+				return m.request({
+					method: "POST",
+					url: root+"/addScore/" + Score.current.score + "/" + Score.current.name
+				})
+					.then(function (result) {
+						console.log("got:", result)
+						Score.loadList()
+						Score.current.name = ""
+						Score.current.score = 0
+						Score.count = 0
+
+					})
+			}
+		}
+
+		var ScoreView = {
+			oninit: Score.loadList,
+			view: function () {
+				return m(".user-list", Score.list.map(function (item) {
+					return m(".user-list-item", item.properties.name + " " + item.properties.score)
+				}))
+			},
+
+		}
+
+
+		var View = {
+			view: function () {
+				return m("main", [
+					m("h1", { class: "title" }, "My second app Mythill tagada"),
+					/* m("div", { id: "box" }, m(ScoreView)), */
+					// m("div", { id: "form" }, m(Form)),
+					// m("button", { onclick: function () { count++ } }, count + " clicks"),
+					m("div", { id: "play" }, m(Play)),
+				])
+			}
+		}
+
+		var Play = {
+			view: function () {
+				var main = m("main", [
+					m("h1", { class: "title" }, "Le jeu"),
+					m("button", {
+						onclick: function () {
+							des1.getRandom();
+							des2.getRandom();
+							/* console.log(des1.data + des2.data); */
+							/* if (des1.data + des2.data === 7) {
+								Score.current.score += 10
+							}
+							Score.count++;
+							if (Score.count == 10) {
+								Score.save()
+							} */
+						}
+					}, Score.count + " Play"),
+					// m("div", m("des 2 : " + des1)),
+					// m("div", m("des 1 : " + des2)),
+					m("label.label", "name"),
+					m("input.input[type=text][placeholder=name]", {
+						oninput: function (e) { Score.current.name = e.target.value },
+						value: Score.current.name
+					}),
+					m("div", m("Score.current.name : " + Score.current.score)),
+					m("div", Score.current.score),
+					m("div", "Des 1: " + des1.data),
+					m("div", "Des 2: " + des2.data),
+				])
+				return main;
+			}
+		}
+
+
+		var Form = {
+			view: function () {
+				return m("form", {
+					onsubmit: function (e) {
+						e.preventDefault()
+						Score.save()
+					}
+				}, [
+						m("label.label", "score"),
+						m("input.input[type=int][placeholder=score]", {
+							oninput: function (e) { Score.current.score = e.target.value },
+							value: Score.current.score
+						}),
+						m("label.label", "name"),
+						m("input.input[type=text][placeholder=name]", {
+							oninput: function (e) { Score.current.name = e.target.value },
+							value: Score.current.name
+						}),
+						m("button.button[type=submit]", "Save"),
+					])
+			}
+		}
+
+		m.mount(document.body, View)
+
+
+	</script>
 </body>
+
 </html>

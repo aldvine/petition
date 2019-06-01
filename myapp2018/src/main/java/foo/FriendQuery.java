@@ -63,7 +63,7 @@ public class FriendQuery extends HttpServlet {
 				.setFilter(CompositeFilterOperator.and(
 						new FilterPredicate("friends", FilterOperator.EQUAL, "f94"),
 						new FilterPredicate("friends", FilterOperator.EQUAL, "f93"),
-						new FilterPredicate("age", FilterOperator.EQUAL, 67))); //and >= ??
+						new FilterPredicate("age", FilterOperator.LESS_THAN_OR_EQUAL, 67))); //and >= ??
 		
 		pq = datastore.prepare(q);
 		result = pq.asList(FetchOptions.Builder.withDefaults());

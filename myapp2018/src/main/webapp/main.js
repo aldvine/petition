@@ -20,7 +20,7 @@ var MyApp = (function (superclass) {
   MyApp.prototype.componentDidMount = function componentDidMount () {
     var this$1 = this;
 
-    fetch('https://sobike44.appspot.com/_ah/api/myApi/v1/entity/titi')
+    fetch('http://localhost:8080/_ah/api/myApi/v1/entity/titi')
       .then(function (response) { return response.json(); })
       .then(function (data) { return this$1.setState({  data : data.items }); });
   };
