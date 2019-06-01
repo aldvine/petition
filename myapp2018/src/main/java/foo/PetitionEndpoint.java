@@ -3,6 +3,7 @@ package foo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 
@@ -20,11 +21,13 @@ import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.PreparedQuery.TooManyResultsException;
+import com.google.appengine.api.datastore.PropertyProjection;
 import com.google.appengine.api.datastore.Query.CompositeFilter;
 import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
+import com.google.appengine.api.datastore.Query.SortDirection;
 import com.google.appengine.api.datastore.Transaction;
 
 
@@ -37,31 +40,42 @@ namespace = @ApiNamespace(ownerDomain = "helloworld.example.com",
 public class PetitionEndpoint {
 	
 	@ApiMethod(name = "addPetition",
-			httpMethod = ApiMethod.HttpMethod.POST, path="addPetition")
+			httpMethod = ApiMethod.HttpMethod.POST, path="petition")
 	public Entity addPetition(Petition petition) {
-		petition.title = "test";
-		petition.description = "test description";
-		petition.creator = "creator";
-		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-		Entity pet = new Entity("Petition", petition.title.trim()); // TODO verifier si elle n'existe pas déjà
-		pet.setProperty("title", "title");
-		pet.setProperty("description", "description");
-		// premier signataires = le createur
-		pet.setProperty("counter", 1);
-		String lastIndexOfSignatures = petition.title.trim()+"_start-1";
-		pet.setProperty("signaturesIndex",lastIndexOfSignatures);
-		Entity signatures = new Entity("Signatures",lastIndexOfSignatures,pet.getKey()); 
-		ArrayList<String> signatories = new ArrayList<String>();
-		// ajout du créateur dans les signatures
-		signatories.add(petition.creator);
-		signatures.setProperty("signatories", signatories );
-		signatures.setProperty("total", 1);
-		datastore.put(pet);
-		datastore.put(signatures);
-		return pet;
+//		petition.title = "test";
+//		petition.description = "test description";
+//		petition.creator = "creator";
+//		
+		if(petition !=null) {
+			if(petition.testValid()) {
+				
+				DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+				Entity pet = new Entity("Petition", petition.title.trim()); // TODO verifier si elle n'existe pas déjà 
+				pet.setProperty("title", "title");
+				pet.setProperty("description", "description");
+				// premier signataires = le createur
+				pet.setProperty("counter", 1);
+				String lastIndexOfSignatures = petition.title.trim()+"_start-1";
+				pet.setProperty("signaturesIndex",lastIndexOfSignatures);
+				Entity signatures = new Entity("Signatures",lastIndexOfSignatures,pet.getKey()); 
+				ArrayList<String> signatories = new ArrayList<String>();
+				// ajout du créateur dans les signatures
+				signatories.add(petition.creator);
+				signatures.setProperty("signatories", signatories );
+				signatures.setProperty("total", 1);
+				datastore.put(pet);
+				datastore.put(signatures);
+				return pet;
+			}else {
+				return null;
+			}
+		}else {
+			return null;
+		}
+		
 	}
 	
-	@ApiMethod(name = "getAllPetitions",path="getAllPetitions")
+	@ApiMethod(name = "getAllPetitions", httpMethod = ApiMethod.HttpMethod.GET, path="petition/all")
 	public List<Entity> getAllPetitions() {
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 //		Key petitionKey = KeyFactory.createKey("Petition", "title");
@@ -72,18 +86,30 @@ public class PetitionEndpoint {
 		PreparedQuery pq = datastore.prepare(q);
 		return pq.asList(FetchOptions.Builder.withDefaults());
 	}
-
+	
+	@ApiMethod(name = "getTopPetitions", httpMethod = ApiMethod.HttpMethod.GET, path="petition/top")
+	public List<Entity> getTopPetitions() {
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		Query q = new Query("Petition")
+				.addProjection(new PropertyProjection("title", String.class))
+				.addProjection(new PropertyProjection("description", String.class))
+				.addProjection(new PropertyProjection("counter", Long.class))
+				.addSort("counter", SortDirection.DESCENDING);
+		PreparedQuery pq = datastore.prepare(q);
+		return pq.asList(FetchOptions.Builder.withLimit(100));
+	}
 	
 	@SuppressWarnings("unchecked")
-	@ApiMethod(name = "signPetition",httpMethod = ApiMethod.HttpMethod.POST,path="signPetition")
+	@ApiMethod(name = "signPetition",httpMethod = ApiMethod.HttpMethod.POST,path="signature/add")
 	public Response addSignatory(Signature signature) throws EntityNotFoundException {
 		// retour
+
 		Response response = new Response();
 		response.code="500";
 		response.message = "Un problème est survenue lors de la signature (veuillez contacter un administateur)";
 		
 		// pour tester sans IHM
-		signature.signatory="monsieur b";
+		signature.signatory="test@test.fr";
 		signature.title = "test";
 		
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
@@ -93,10 +119,8 @@ public class PetitionEndpoint {
 		Key petKey = KeyFactory.createKey("Petition", signature.title.trim());
 		Query q = new Query("Signatures").setFilter(f).setAncestor(petKey);
 		PreparedQuery pq = datastore.prepare(q);
-		Boolean notSigned =  pq.asList(FetchOptions.Builder.withLimit(1)).isEmpty();
-		if(notSigned) {
-			// TODO faire la sigature
-			
+		Boolean isNotSigned =  pq.asList(FetchOptions.Builder.withLimit(1)).isEmpty();
+		if(isNotSigned) {			
 			Entity petition = datastore.get(petKey);
 			// aide https://cloud.google.com/appengine/docs/standard/java/datastore/transactions
 			Transaction txn = datastore.beginTransaction();
@@ -140,7 +164,6 @@ public class PetitionEndpoint {
 				datastore.put(txn, petition);
 				datastore.put(txn, signatures);		
 				txn.commit();
-//				Response success = new Response();
 				response.code="200";
 				response.message = "La signature a bien été prise en compte.";
 			} finally {
@@ -148,57 +171,29 @@ public class PetitionEndpoint {
 			    txn.rollback();
 			  }
 			}
-			
-		
 		}else {
 			response.code="403";
 			response.message = "La signature a déjà été prise en compte.";
 		}
 		return response;
 	}
-
-
 	
-//	@ApiMethod(name = "addSignatory")
-//	public Entity addSignatory() {
-//		return null;
-//	}
-//	
-//	@ApiMethod(name = "listAllScore")
-//	public List<Entity> listAllScoreEntity() {
-//			Query q =
-//			    new Query("Score");
-//
-//			DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-//			PreparedQuery pq = datastore.prepare(q);
-//			List<Entity> result = pq.asList(FetchOptions.Builder.withDefaults());
-//			return result;
-//	}
-//
-//
-//	@ApiMethod(name = "listScore")
-//	public List<Entity> listScoreEntity(@Named("name") String name) {
-//			Query q =
-//			    new Query("Score")
-//			        .setFilter(new FilterPredicate("name", FilterOperator.EQUAL, name));
-//
-//			DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-//			PreparedQuery pq = datastore.prepare(q);
-//			List<Entity> result = pq.asList(FetchOptions.Builder.withDefaults());
-//			return result;
-//	}
-//	
-//	@ApiMethod(name = "addScore")
-//	public Entity addScore(@Named("score") int score, @Named("name") String name) {
-//			
-//			Entity e = new Entity("Score", ""+name+score);
-//			e.setProperty("name", name);
-//			e.setProperty("score", score);
-//
-//			DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-//			datastore.put(e);
-//			
-//			return  e;
-//	}
+	@ApiMethod(name = "getPetitionsSignedByUser", httpMethod = ApiMethod.HttpMethod.GET, path="user/{username}/signatures/all")
+	public List<Entity> getPetitionsSignedByUser(@Named("username") String username) {
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 
+		Filter f = new FilterPredicate("signatories", FilterOperator.EQUAL, username);
+		Query q = new Query("Signatures").setFilter(f).setKeysOnly();
+		PreparedQuery pq = datastore.prepare(q);
+		List<Entity> signatures = pq.asList(FetchOptions.Builder.withDefaults());
+		
+		List<Key> pets = new ArrayList<Key>();
+
+		for (Entity s : signatures) {
+			pets.add(s.getParent());
+		}
+		Map<Key,Entity> petitionsMap = datastore.get(pets);	
+		List<Entity> petitions = new ArrayList<Entity>(petitionsMap.values());
+		return petitions;
+	}
 }
