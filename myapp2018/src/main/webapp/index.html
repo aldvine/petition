@@ -1,181 +1,151 @@
 <!DOCTYPE html>
 <html>
-
-<head>
-	<meta charset="UTF-8">
-	<title>First App Mythrill</title>
-</head>
-
-<body>
-
-
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>TinyPet</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css">
 	<script src="https://unpkg.com/mithril/mithril.js"></script>
-	<script>
+  </head>
+  <body>
+ <script>
 		var root= "http://localhost:8080/_ah/api/myApi/v1" 
 	/* 	var root= "https://cloud-miage.appspot.com/_ah/api/myApi/v1" */
+	
 
-		var des1={
-			data:0,
-			getRandom: function () {
-				return m.request({
-					method: "POST",
-					url: root+"/addPetition"
-				})
-					.then(function (result) {
-						console.log(result);
-						des1.data = result.result
-					})
-			},
-		}
-
-		var des2={
-			data:0,
-			getRandom: function () {
-				return m.request({
-					method: "GET",
-					url: root+"/getPetition"
-				})
-					.then(function (result) {
-						console.log(result);
-						des2.data = result.result
-					})
-			},
-		}
-
-
-		var Score = {
-			count: 0,
-
-			list: [],
-			loadList: function () {
-				return m.request({
-					method: "GET",
-					url: root+"/entity/titi"
-				})
-					.then(function (result) {
-						Score.list = result.items
-						console.log("got:", result.items)
-						m.redraw(true) // force
-					})
-			},
-
-			current: {
-				score: 0
-			},
-			play: function () {
-
-				return m.request({
-					method: "POST",
-					url: root+"/random"
-				})
-					.then(function (result) {
-						console.log("got:", result)
-
-						// Score.current.score = result
-					})
-			},
-			save: function () {
-				console.log("saving...", Score.current)
-				return m.request({
-					method: "POST",
-					url: root+"/addScore/" + Score.current.score + "/" + Score.current.name
-				})
-					.then(function (result) {
-						console.log("got:", result)
-						Score.loadList()
-						Score.current.name = ""
-						Score.current.score = 0
-						Score.count = 0
-
-					})
-			}
-		}
-
-		var ScoreView = {
-			oninit: Score.loadList,
+		var Petitions = {
+			list:[],
 			view: function () {
-				return m(".user-list", Score.list.map(function (item) {
-					return m(".user-list-item", item.properties.name + " " + item.properties.score)
-				}))
-			},
-
-		}
-
-
-		var View = {
-			view: function () {
-				return m("main", [
-					m("h1", { class: "title" }, "My second app Mythill tagada"),
-					/* m("div", { id: "box" }, m(ScoreView)), */
-					// m("div", { id: "form" }, m(Form)),
-					// m("button", { onclick: function () { count++ } }, count + " clicks"),
-					m("div", { id: "play" }, m(Play)),
-				])
-			}
-		}
-
-		var Play = {
-			view: function () {
-				var main = m("main", [
-					m("h1", { class: "title" }, "Le jeu"),
-					m("button", {
+				var main = m("div.container",{oninit:function(){
+					 m.request({
+					        method: "GET",
+					        url: root+"/petitions",
+					    })
+					    .then(function(data) {
+					    	Petitions.list = data.items;
+					    	console.log(Petitions.list);
+					    })
+				} }, [
+					m("h1", { class: "title" }, "Les pétitions"),
+					m(FormPetition),
+					m("a.button is-primary is-primary is-rounded", {
 						onclick: function () {
-							des1.getRandom();
-							des2.getRandom();
-							/* console.log(des1.data + des2.data); */
-							/* if (des1.data + des2.data === 7) {
-								Score.current.score += 10
-							}
-							Score.count++;
-							if (Score.count == 10) {
-								Score.save()
-							} */
+							 m.request({
+							        method: "GET",
+							        url: root+"/petitions",
+							    })
+							    .then(function(data) {
+							    	Petitions.list = data.items;
+							    	console.log(Petitions.list);
+							    })
 						}
-					}, Score.count + " Play"),
-					// m("div", m("des 2 : " + des1)),
-					// m("div", m("des 1 : " + des2)),
-					m("label.label", "name"),
-					m("input.input[type=text][placeholder=name]", {
-						oninput: function (e) { Score.current.name = e.target.value },
-						value: Score.current.name
-					}),
-					m("div", m("Score.current.name : " + Score.current.score)),
-					m("div", Score.current.score),
-					m("div", "Des 1: " + des1.data),
-					m("div", "Des 2: " + des2.data),
+					}, "Toutes les pétitions"),
+					m("a.button is-info is-rounded ", {
+						onclick: function () {
+							 m.request({
+							        method: "GET",
+							        url: root+"/petition/top",
+							    })
+							    .then(function(data) {
+							    	Petitions.list = data.items;
+							    	console.log(Petitions.list);
+							    })
+						}
+					}, "Top 100"),
+					m("div.box", petitionList(Petitions.list))
 				])
 				return main;
 			}
 		}
+		
+	function petitionList(petitions){
+		return petitions.map(function(p) {
+	        return m("div.box", [
+	        	m("article.media",[
+	        		m("div.media-content",[
+	        			m("div.content",[
+	        					m("p",[
+		        					m("strong",p.properties.title),
+		        					m("br"),
+		        					m("span",p.properties.description),
+		        					m("br"),
+		        					m("span", "Signatures: "+p.properties.counter)
+		        				]),
+		        				m("a.button is-info",{onclick:function(){
+		        					 m.request({
+								        method: "POST",
+								        url: root+"/signature",
+								        data:{signatory:"test" ,title:p.properties.title}
+								    })
+								    .then(function(data) {
+								    	console.log(data);
+								    })
+		        				}},"Signer")
+	        				,
+	        			])
+	        		])
+	        	])
+	        ])
+	    })
+	}
+		
+		
+		
+		function getPetitions(){
+			return  m.request({
+		        method: "GET",
+		        url: root+"/petitions",
+		        withCredentials: true,
+		    })
+		    .then(function(data) {
+		    	Petitions.list = data.items;
+		    })
+		}
 
 
-		var Form = {
+		var FormPetition = {
+			title:'',
+			description:'',
+			creator:'aldvine',
 			view: function () {
-				return m("form", {
+				return m("form.box", {
 					onsubmit: function (e) {
 						e.preventDefault()
-						Score.save()
+						if(FormPetition.title != "" && FormPetition.description!=""){
+							m.request({
+							    method: "POST",
+							    url: root+"/petition",
+							    data:{title:FormPetition.title,description:FormPetition.description,creator:FormPetition.creator}
+							})
+							.then(function(data) {
+								console.log(data);
+							})
+						}
 					}
 				}, [
-						m("label.label", "score"),
-						m("input.input[type=int][placeholder=score]", {
-							oninput: function (e) { Score.current.score = e.target.value },
-							value: Score.current.score
+						m("h1.title", "Création d'une pétition"),
+						m("label.label", "titre"),
+			 			m("input.input[type=text][placeholder=titre]", {
+							oninput: function (e) { 
+								FormPetition.title = e.target.value
+								},
+							value: FormPetition.title
+						}), 
+						m("label.label", "Description"),
+						m("input.input[type=text][placeholder=description]", {
+							oninput: function (e) {  FormPetition.description = e.target.value },
+							value:  FormPetition.description
 						}),
-						m("label.label", "name"),
-						m("input.input[type=text][placeholder=name]", {
-							oninput: function (e) { Score.current.name = e.target.value },
-							value: Score.current.name
-						}),
-						m("button.button[type=submit]", "Save"),
+						m("button.button[type=submit] .button is-rounded is-success", "Ajouter"),
 					])
 			}
 		}
 
-		m.mount(document.body, View)
+		m.route(document.body, "/",{
+				"/":Petitions})
 
 
 	</script>
 </body>
-
+  </body>
 </html>
