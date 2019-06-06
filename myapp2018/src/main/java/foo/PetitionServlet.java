@@ -29,103 +29,76 @@ import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
 import com.google.appengine.api.datastore.Query.SortDirection;
 
-@WebServlet(name = "PetitionServlet", urlPatterns = { "/petitions" })
+@WebServlet(name = "PetitionServlet", urlPatterns = { "/populate" })
 public class PetitionServlet extends HttpServlet {
 
+	
 	@Override
 	public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
 
 		response.setContentType("text/html");
 		response.setCharacterEncoding("UTF-8");
-
-		response.getWriter().print("Populating....<br>");
-
+		response.getWriter().print("Populating ... <br>");
 		Random r = new Random();
-
-		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-
-		Map<String, Entity> users = new HashMap<String, Entity>();
-		// Create Petitions 
-		for (int i = 0; i < 200; i++) {			
-			int randomCreator = r.nextInt(100);
-			String creator = "u"+randomCreator+"@gmail.com";
-			// création du user s'il n'existe pas 
-			Entity user ;
-			if(!users.containsKey(creator)) {
-				user = new Entity("User", creator);
-				user.setProperty("firstname", "firstname" + randomCreator);
-				user.setProperty("lastname", "lastname" + randomCreator);
-				ArrayList<String> myPetitions = new ArrayList<String>();
-				myPetitions.add("pet"+i);
-				user.setProperty("petitions",myPetitions);
-				ArrayList<String> signatures = new ArrayList<String>();
-				user.setProperty("signatures",signatures);
-
-			}else{
-				// ajout d'une petition dans la liste du user s'il existe déjà
-				user = users.get(creator);
-				@SuppressWarnings("unchecked") // Cast can't verify generic type.
-				// TODO
-				ArrayList<String> petitions = (ArrayList<String>) user.getProperty("petitions");
-				petitions.add("pet"+i);
-				user.setProperty("petitions",petitions);				
-			}
+		ArrayList<Entity> petitionList = new ArrayList<Entity>();
+		ArrayList<Entity> signaturesList = new ArrayList<Entity>();
+		// Create users
+		int numberOfPetitions = r.nextInt(7); // création entre 1 et 7 pétitions (Si plus risque -> TIME OUT)
+		for (int i = 0; i < numberOfPetitions; i++) {
+			int petitionNumber = r.nextInt(10000); // nombre aléatoire de pétition
+			Entity pet = new Entity("Petition", "petition_"+petitionNumber); // TODO verifier si elle n'existe pas déjà sinon elle va etre remplacé avec plus de signataires
 			
-			Entity pet = new Entity("Petition", "pet" + i,user.getKey()); // le créateur est le parent User
-			pet.setProperty("title", "title" + i);
-			pet.setProperty("description", "description" + i);
-			users.put(creator,user);
-			
-			// ajout des signataires
-			ArrayList<String> signatories = new ArrayList<String>();
-			Integer counter=0;
-			for (int j=0;j<r.nextInt(100);j++) {
-				 String signatory = "u"+r.nextInt(100)+"@gmail.com" ;
-				 if(!signatories.contains(signatory)) { // une seule signature par personne
-					 signatories.add(signatory);
-					 counter++;
-				 }
-				Entity indexSignatories=new Entity("SignatoriesIndex","signIndex"+i, pet.getKey());
-				indexSignatories.setProperty("counter", counter); 
-				 
-				 //creation du user s'il n'existe pas .
-				Key signatoryKey = KeyFactory.createKey("User", signatory);
-				if(!users.containsKey(signatory)) {
-					user = new Entity("User",signatory);
-					user.setProperty("firstname", "firstname" + randomCreator);
-					user.setProperty("lastname", "lastname" + randomCreator);
-					ArrayList<String> petitions = new ArrayList<String>();
-					user.setProperty("petitions",petitions);
-					ArrayList<String> signatures = new ArrayList<String>();
-					signatures.add("pet"+i);
-					user.setProperty("signatures",signatures);
-//						datastore.put(user);
-					users.put(signatory,user);
-				}else{
-					// ajout d'une petition dans la liste du user s'il existe déjà
-//							Entity user = datastore.get(userKey);
-					 user = users.get(signatory);
-					@SuppressWarnings("unchecked") // Cast can't verify generic type.
-						ArrayList<String> signatures = (ArrayList<String>) user.getProperty("signatures");
-					signatures.add("pet"+i);
-					user.setProperty("signatures",signatures);				
-					users.put(signatory,user);
+			pet.setProperty("title", "petition "+petitionNumber);
+			pet.setProperty("description", "lorem ipsum "+petitionNumber);
+			int counter = 1;
+			pet.setProperty("counter", counter);
+			String creator = "u"+r.nextInt(10000);
+			pet.setProperty("creator", creator);
+			String lastIndexOfSignatures = "petition_"+petitionNumber+"_start-1";
+			pet.setProperty("signaturesIndex",lastIndexOfSignatures);
+			Entity signatures = new Entity("Signatures",lastIndexOfSignatures,pet.getKey()); 
+			HashSet<String> signatories = new HashSet<String>();
+			// ajout du créateur dans les signatures
+			signatories.add(creator);
+			signatures.setProperty("signatories", signatories );
+			int total = 1;
+			signatures.setProperty("total", total);
+
+			response.getWriter().print("<li> creation of Petition:" + pet.getKey() + "<br>");
+			int numberOfSignatories = r.nextInt(6000); // création entre 1 et 6000 petition pour tester le principe de changement de liste si le nombre de 5000 est atteint
+			for (int j = 0; j < numberOfSignatories; j++) {
+				
+				int oldSizeOfList = signatories.size();
+				// tant que l'utilisateur ajouté n'est pas nouveau
+				while(signatories.size() <= oldSizeOfList) {
+					signatories.add("u" + r.nextInt(10000));
+				}
+				counter ++;
+				total++;
+				signatures.setProperty("signatories", signatories );
+				signatures.setProperty("total", total);
+				if(total>=5000) {
+					// ajout entity signatures dans la liste à insérer dans le datastore	
+					signaturesList.add(signatures);
+					response.getWriter().print("<li> creation of signatures:" + signatures.getKey() + "<br>");
+					lastIndexOfSignatures = "petition_"+petitionNumber+"_start-"+counter;
+					signatures = new Entity("Signatures",lastIndexOfSignatures,pet.getKey()); 
+					pet.setProperty("signaturesIndex", lastIndexOfSignatures);
+					signatories = new HashSet<String>();
+					total=0;
+					signatures.setProperty("total",total);
 				}
 			}
-			pet.setProperty("signatories", signatories);
 			pet.setProperty("counter", counter);
-			datastore.put(pet);
-			
-		// TODO  index sur le nombre de signature pour ressortir rapidement le top 100
-			Entity index=new Entity("PetitionIndex","petIndex"+i, pet.getKey());
-			index.setProperty("counter", counter);
-			datastore.put(index);
-			response.getWriter().print("<li> created petitions:" + pet.getKey() + " by "+pet.getParent()+"<br> added signatories ("+counter+")" + signatories + "<br>");
+			petitionList.add(pet);
+			signaturesList.add(signatures);
+			response.getWriter().print("<li> creation of signatures:" + signatures.getKey() + "<br>");
 		}
-		// ajout des users dans le datastore
-		datastore.put(users.values());
-		for (Entity u : users.values()) {
-			response.getWriter().print("<li> created users:" + u.getProperty("firstname") + ",added petitions :" + u.getProperty("petitions") + "added signatures :"+ u.getProperty("signatures") +"<br>");
-		}
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+		//Ajout des petitions
+		datastore.put(petitionList);
+		// Ajout des signatures
+		datastore.put(signaturesList);
+		response.getWriter().print("<li> fin de creation de "+ numberOfPetitions+" petitions");
 	}
 }

@@ -2,15 +2,16 @@ package foo;
 
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 
 import com.google.api.server.spi.config.Api;
 import com.google.api.server.spi.config.ApiMethod;
 import com.google.api.server.spi.config.ApiNamespace;
 import com.google.api.server.spi.config.Named;
+import com.google.api.server.spi.response.UnauthorizedException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
@@ -22,15 +23,13 @@ import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.PreparedQuery.TooManyResultsException;
 import com.google.appengine.api.datastore.PropertyProjection;
-import com.google.appengine.api.datastore.Query.CompositeFilter;
-import com.google.appengine.api.datastore.Query.CompositeFilterOperator;
 import com.google.appengine.api.datastore.Query.Filter;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
 import com.google.appengine.api.datastore.Query.SortDirection;
 import com.google.appengine.api.datastore.Transaction;
-import com.google.appengine.api.users.UserService;
-import com.google.appengine.api.users.UserServiceFactory;
+
+import com.google.api.server.spi.auth.common.User;
 
 
 @Api(name = "myApi",
@@ -41,33 +40,62 @@ namespace = @ApiNamespace(ownerDomain = "helloworld.example.com",
 
 public class PetitionEndpoint {
 	
-	// authentification avec google simple https://cloud.google.com/java/getting-started-appengine-standard/authenticate-users?hl=fr#understanding_the_code
+	final static String clientsIds = "VOTRE-ID";
+	// authentification avec google simple https://cloud.google.com/endpoints/docs/frameworks/java/javascript-client?hl=fr
 	
+//	@SuppressWarnings("unchecked")
 	@ApiMethod(name = "addPetition",
-			httpMethod = ApiMethod.HttpMethod.POST, path="petition")
-	public Entity addPetition(Petition petition) {
-//		petition.title = "test";
-//		petition.description = "test description";
-//		petition.creator = "creator";
+			httpMethod = ApiMethod.HttpMethod.POST, path="petition",
+			clientIds = {PetitionEndpoint.clientsIds},
+			   audiences = {PetitionEndpoint.clientsIds})
+	public Entity addPetition(User user,Petition petition) throws UnauthorizedException, EntityNotFoundException {
+		
+		 if (user == null) {
+			    throw new UnauthorizedException("Invalid credentials");
+		 }
+
 			if(petition !=null) {
 				if(petition.testValid()) {
 					
 					DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-					Entity pet = new Entity("Petition", petition.title.trim()); // TODO verifier si elle n'existe pas déjà 
+					Entity pet = new Entity("Petition", petition.title.trim().replaceAll("\\s+","_")); // TODO verifier si elle n'existe pas déjà sinon elle va etre remplacé avec plus de signataires
+					
+					// Deprecated verification si user exist
+//					Key userKey = KeyFactory.createKey("User", user.getEmail());
+//					Filter f = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
+//					Query q = new Query("User").setFilter(f);
+//					PreparedQuery pq = datastore.prepare(q);
+//					Entity u =  pq.asSingleEntity();
+//				
+//					ArrayList<String> sign = new ArrayList<String>();
+//					if(u ==null) {
+//						//creation de l'utilisateur s'il n'existe pas
+//						u = new Entity("User", user.getEmail());
+//					}else {
+//						sign = (ArrayList<String>) u.getProperty("signatures");
+//					}
+//					HashSet<String> signSet = new HashSet<String>(sign);
+//					signSet.add(petition.title.trim().replaceAll("\\s+","_"));
+//					u.setProperty("signatures",signSet);
+//					datastore.put(u);
+					
 					pet.setProperty("title", petition.title);
 					pet.setProperty("description", petition.description);
 					// premier signataires = le createur
 					pet.setProperty("counter", 1);
-					String lastIndexOfSignatures = petition.title.trim()+"_start-1";
+					pet.setProperty("creator", user.getEmail());
+					String lastIndexOfSignatures = petition.title.trim().replaceAll("\\s+","_")+"_start-1";
 					pet.setProperty("signaturesIndex",lastIndexOfSignatures);
 					Entity signatures = new Entity("Signatures",lastIndexOfSignatures,pet.getKey()); 
 					ArrayList<String> signatories = new ArrayList<String>();
 					// ajout du créateur dans les signatures
-					signatories.add(petition.creator);
+					signatories.add(user.getEmail());
 					signatures.setProperty("signatories", signatories );
 					signatures.setProperty("total", 1);
+					
 					datastore.put(pet);
 					datastore.put(signatures);
+
 					return pet;
 				}else {
 					return null;
@@ -101,85 +129,108 @@ public class PetitionEndpoint {
 	}
 	
 	@SuppressWarnings("unchecked")
-	@ApiMethod(name = "signPetition",httpMethod = ApiMethod.HttpMethod.POST,path="signature")
-	public Response addSignatory(Signature signature) throws EntityNotFoundException {
-		// retour
+	@ApiMethod(name = "signPetition",httpMethod = ApiMethod.HttpMethod.POST,path="signature",
+			clientIds = {PetitionEndpoint.clientsIds},
+			   audiences = {PetitionEndpoint.clientsIds})
+	public Response addSignatory(User user,Signature signature) throws EntityNotFoundException,UnauthorizedException {
+		 
+		if (user == null) {
+			    throw new UnauthorizedException("Invalid credentials");
+		 }
 
 		Response response = new Response();
 		response.code="500";
 		response.message = "Un problème est survenue lors de la signature (veuillez contacter un administateur)";
-		signature.title = "test";
-		signature.signatory="bonjour";
+
 		if(signature.testValid()) {
 			DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-			Filter f = new FilterPredicate("signatories", FilterOperator.EQUAL, signature.signatory);
+			Filter f = new FilterPredicate("signatories", FilterOperator.EQUAL, user.getEmail());
 			// Limiter la requete sur des signatures à l'ancetre Petition
 			// https://cloud.google.com/appengine/docs/standard/java/datastore/queries#ancestor_filters
-			Key petKey = KeyFactory.createKey("Petition", signature.title.trim());
-			Query q = new Query("Signatures").setFilter(f).setAncestor(petKey);
-			PreparedQuery pq = datastore.prepare(q);
-			Boolean isNotSigned =  pq.asList(FetchOptions.Builder.withLimit(1)).isEmpty();
-			if(isNotSigned) {			
-				Entity petition = datastore.get(petKey);
-				// aide https://cloud.google.com/appengine/docs/standard/java/datastore/transactions
-				Transaction txn = datastore.beginTransaction();
-				try {
-					Key signaturesKey = KeyFactory.createKey(petKey,"Signatures",petition.getProperty("signaturesIndex").toString());
+			Key petKey = KeyFactory.createKey("Petition", signature.title.trim().replaceAll("\\s+","_"));
+			Query q = new Query("Signatures").setAncestor(petKey).setFilter(f);
+			// la transaction est lancé avant la requête pour vérifier si l'utilisateur a déja signé sinon il peut signer deux fois si l'action est lancée en parallèle au même moment. 
+			Transaction txn = datastore.beginTransaction();
+			try {
+				PreparedQuery pq = datastore.prepare(q);
+				Boolean isNotSigned =  pq.asList(FetchOptions.Builder.withLimit(1)).isEmpty();
+				if(isNotSigned) {			
+					Entity petition = datastore.get(petKey);
+					// aide https://cloud.google.com/appengine/docs/standard/java/datastore/transactions
 					
-					Entity signatures = datastore.get(signaturesKey);
-
-					int total = Integer.parseInt(signatures.getProperty("total").toString());
-					int counter = Integer.parseInt(petition.getProperty("counter").toString());
-					counter++;
-					
-					petition.setProperty("counter",counter);
-					if(total>=5000) {
-						// changement de liste carte limite atteinte
+						Key signaturesKey = KeyFactory.createKey(petKey,"Signatures",petition.getProperty("signaturesIndex").toString());
 						
-						String indexOfSignatures = petition.getProperty("title").toString()+"_start-"+total;
-						
-						Entity newSignatures =  new Entity("Signatures",indexOfSignatures,petition.getKey()); 
-						total =1;
-						signatures.setProperty("total", 1);
-						ArrayList<String> signatories = new ArrayList<String>();
-						// ajout du signataires dans la liste des signatures
-						signatories.add(signature.signatory);
-						signatures.setProperty("signatories", signatories );
+						Entity signatures = datastore.get(signaturesKey);
+	
+						int total = Integer.parseInt(signatures.getProperty("total").toString());
+						int counter = Integer.parseInt(petition.getProperty("counter").toString());
 						// ajouter +1 au compteur global. 
-						petition.setProperty("signaturesIndex",indexOfSignatures);
-						// changer l'index Vers la liste des signatures actuelle pour la pétition
+						counter++;
+						petition.setProperty("counter",counter);
+						if(total>=5000) {
+							// changement de liste car limite de taille de liste atteinte (voir diapo)
 							
-					}else {
-						total++;
-						// récuperer la liste des signataires, ajouter le signatire dans cette liste puis mettre à jour la liste 
-						signatures.setProperty("total", total);
-						ArrayList<String> signatories ;
-						signatories = (ArrayList<String>) signatures.getProperty("signatories");
-						signatories.add(signature.signatory);
-						signatures.setProperty("signatories", signatories);
-					}
+							String indexOfSignatures = petition.getProperty("title").toString()+"_start-"+total;
+							
+						    signatures =  new Entity("Signatures",indexOfSignatures,petition.getKey()); 
+							total =1;
+							signatures.setProperty("total", 1);
+							ArrayList<String> signatories = new ArrayList<String>();
+							// ajout du signataires dans la liste des signatures
+							signatories.add(user.getEmail());
+							signatures.setProperty("signatories", signatories );
+							
+							petition.setProperty("signaturesIndex",indexOfSignatures);
+							// changer l'index Vers la liste des signatures actuelle pour la pétition
 								
-					//  ajouter dans le datastore la petition modifié et l'index liste des signataires OK
-					datastore.put(txn, petition);
-					datastore.put(txn, signatures);		
-					txn.commit();
-					response.code="200";
-					response.message = "La signature a bien été prise en compte.";
-				} finally {
+						}else {
+							total++;
+							// récuperer la liste des signataires, ajouter le signatire dans cette liste puis mettre à jour la liste 
+							signatures.setProperty("total", total);
+							ArrayList<String> signatories ;
+							signatories = (ArrayList<String>) signatures.getProperty("signatories");
+							signatories.add(user.getEmail());
+							signatures.setProperty("signatories", signatories);
+						}
+						
+						//deprecated verification si user exist
+//						Key userKey = KeyFactory.createKey("User", user.getEmail());
+//						Filter filterUser = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
+//						Query queryUser = new Query("User").setFilter(filterUser);
+//						Entity u = datastore.prepare(queryUser).asSingleEntity();
+//					
+//						ArrayList<String> sign = new ArrayList<String>();
+//						if(u ==null) {
+//							//creation de l'utilisateur s'il n'existe pas
+//							u = new Entity("User", user.getEmail());
+//						}else {
+//							sign = (ArrayList<String>) u.getProperty("signatures");
+//						}
+//						HashSet<String> signSet = new HashSet<String>(sign);
+//						// ajout de la pétition dans la liste de l'utilisateur
+//						signSet.add(petition.getProperty("title").toString().trim().replaceAll("\\s+","_"));
+//						u.setProperty("signatures",signSet);
+//						datastore.put(txn, u);
+						
+						//  ajouter dans le datastore la petition modifié et l'index liste des signataires OK
+						datastore.put(txn, petition);
+						datastore.put(txn, signatures);	
+						
+						
+						response.code="200";
+						response.message = "La signature a bien été prise en compte.";
+					
+				}else {
+					response.code="403";
+					response.message = "La signature a déjà été prise en compte.";
+				}
+				txn.commit();
+			} finally {
 				  if (txn.isActive()) {
 				    txn.rollback();
 				  }
-				}
-			}else {
-				response.code="403";
-				response.message = "La signature a déjà été prise en compte.";
 			}
-		}
-		// pour tester sans IHM
-//		signature.signatory="test@test.fr";
-//		signature.title = "test";
-		
-		
+		}		
 		return response;
 	}
 	
@@ -200,5 +251,32 @@ public class PetitionEndpoint {
 		Map<Key,Entity> petitionsMap = datastore.get(pets);	
 		List<Entity> petitions = new ArrayList<Entity>(petitionsMap.values());
 		return petitions;
+	}
+	
+	
+	// Utilisation de l'entité User pas plus intéréssant pour les requêtes
+	@Deprecated
+	@SuppressWarnings("unchecked")
+	@ApiMethod(name = "getPetitionsSignedByUserV2", httpMethod = ApiMethod.HttpMethod.GET, path="user/{username}/signaturesV2")
+	public List<Entity> getPetitionsSignedByUserV2(@Named("username") String username) throws EntityNotFoundException {
+		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
+
+		Key userKey = KeyFactory.createKey("User", username);
+		Filter filterUser = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
+		Query queryUser = new Query("User").setFilter(filterUser);
+		Entity u = datastore.prepare(queryUser).asSingleEntity();
+		
+		ArrayList<Entity> petitions = new ArrayList<Entity>();
+		if(u!= null) {	
+			// recuperation des id des petitions signé par l'utilisateur
+			ArrayList<String> signatures= new ArrayList<String>();
+			signatures = (ArrayList<String>) u.getProperty("signatures");			
+			for (String s : signatures) {
+				Key petitionKey = KeyFactory.createKey("Petition",s);
+				petitions.add(datastore.get(petitionKey));			
+			}
+		}
+		return petitions;
+	
 	}
 }

@@ -1,5 +1,7 @@
 indexes:
-- kind: Friend
+- kind: Petition
   properties:
-    - name: friends
-    - name: age
+  - name: counter
+    direction: desc
+  - name: description
+  - name: title
