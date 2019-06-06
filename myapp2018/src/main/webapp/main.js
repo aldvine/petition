@@ -16,7 +16,7 @@ function initGoogleAuth (clientId = "122644336388-92j45odst8ekhc91lhtj49rv4ipr8q
 	}else{
 		Menu.connected=false;
 	}
-    console.log(Menu.connected);
+//    console.log(Menu.connected);
 	m.redraw();
   }).catch(err => {
     console.log(err);
@@ -109,7 +109,7 @@ var Petitions = {
 			    })
 			    .then(function(data) {
 			    	Petitions.list = data.items;
-			  		console.log(Petitions.list); 
+//			  		console.log(Petitions.list); 
 			    })
 		},oncreate:function(){
 			// connexion google
@@ -128,7 +128,7 @@ var Petitions = {
 						    })
 						    .then(function(data) {
 						    	Petitions.list = data.items;
-						    	console.log(Petitions.list); 
+//						    	console.log(Petitions.list); 
 						    })
 					}
 				}, "Toutes les pétitions"),
@@ -141,7 +141,7 @@ var Petitions = {
 						    })
 						    .then(function(data) {
 						    	Petitions.list = data.items;
-						    	console.log(Petitions.list);
+//						    	console.log(Petitions.list);
 						    })
 					}
 				}, "Top 100"),
