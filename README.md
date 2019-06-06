@@ -8,7 +8,7 @@ https://cloud-miage.appspot.com
 
 Sur l'application une authentification est nécéssaire pour ajouter une pétition et signer un petition. 
 L'adresse mail du compte google sert d'utilisateur
-Pour faire fonctionner l'application remplacez la constante "clientIds" du fichier petitionEndpoint par la votre pour autoriser la connexion via un compte google
+Pour faire fonctionner l'application remplacez la constante "clientIds" du fichier petitionEndpoint.java et le client-id de la fonction initGoogleAuth par le votre pour autoriser la connexion via un compte google
 ID clients OAuth 2.0: 
 https://console.cloud.google.com/apis/credentials
 

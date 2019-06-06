@@ -5,7 +5,7 @@ var gapi = gapi || {};
 function loadAuthClient () {
 	  gapi.load('auth2', initGoogleAuth);
 	}
-function initGoogleAuth (clientId = "122644336388-92j45odst8ekhc91lhtj49rv4ipr8q61.apps.googleusercontent.com") {
+function initGoogleAuth (clientId = "client-id") {
   gapi.auth2.init({
     client_id: clientId,
     scope: 'https://www.googleapis.com/auth/userinfo.email'
