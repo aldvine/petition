@@ -5,7 +5,7 @@ var gapi = gapi || {};
 function loadAuthClient () {
 	  gapi.load('auth2', initGoogleAuth);
 	}
-function initGoogleAuth (clientId = "client-id") {
+function initGoogleAuth (clientId = "122644336388-92j45odst8ekhc91lhtj49rv4ipr8q61.apps.googleusercontent.com") {
   gapi.auth2.init({
     client_id: clientId,
     scope: 'https://www.googleapis.com/auth/userinfo.email'
@@ -141,7 +141,6 @@ var Petitions = {
 						    })
 						    .then(function(data) {
 						    	Petitions.list = data.items;
-//						    	console.log(Petitions.list);
 						    })
 					}
 				}, "Top 100"),
@@ -151,11 +150,28 @@ var Petitions = {
 							 Petitions.list = [];
 						}
 					}, "Signées par utilisateur"),
+				m("a.button is-link is-rounded ", { class:(Petitions.activeView== "MyPetitions" ? "":"is-outlined"), 
+						onclick: function () {
+							if(isSignedIn()){
+								Petitions.activeView="MyPetitions"
+								Petitions.list = [];
+								var user = gapi.auth2.getAuthInstance().currentUser.get();
+								m.request({
+							        method: "GET",
+							        url: root+"/user/"+user.getBasicProfile().getEmail()+"/signatures"
+							    })
+							    .then(function(data) {
+								    Petitions.list = data.items;
+							    });	
+							}
+						}
+					}, "Mes pétitions"),
 				m("div.box",
 						[
 							Petitions.activeView== "top" ? petitionTop(Petitions.list): "",
 							Petitions.activeView== "all" ? petitionAll(Petitions.list): "",
-							Petitions.activeView== "SignedByUser" ? m(SignedByUser): ""
+							Petitions.activeView== "SignedByUser" ? m(SignedByUser): "",
+							Petitions.activeView== "MyPetitions" ? m(MyPetitions): ""
 					])
 			])
 			,	m("div",{style:"position:fixed; bottom:0;right:0;padding:20px;"},notificationList(notifications))])
@@ -189,7 +205,7 @@ var SignedByUser = {
 							}
 							 
 						}
-					},"Rechercher V1"),
+					},"Rechercher"),
 //					m("a.button is-success [type=text]",{
 //						onclick:function(){
 //							if(SignedByUser.username !=""){
@@ -206,6 +222,18 @@ var SignedByUser = {
 //					},"Rechercher V2"),
 				]),
 				
+				m("div.box",[
+					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
+				])
+			]);
+		}
+};
+
+var MyPetitions = {
+		username:"",
+		view:function(){
+			return m("div",[
+				m("h2.subtitle","Liste de mes pétitions"),			
 				m("div.box",[
 					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
 				])

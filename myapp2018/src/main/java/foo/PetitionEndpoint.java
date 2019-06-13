@@ -40,7 +40,7 @@ namespace = @ApiNamespace(ownerDomain = "helloworld.example.com",
 
 public class PetitionEndpoint {
 	
-	final static String clientsIds = "VOTRE-ID";
+	final static String clientsIds = "122644336388-92j45odst8ekhc91lhtj49rv4ipr8q61.apps.googleusercontent.com";
 	// authentification avec google simple https://cloud.google.com/endpoints/docs/frameworks/java/javascript-client?hl=fr
 	
 //	@SuppressWarnings("unchecked")
