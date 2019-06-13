@@ -11,6 +11,7 @@ import com.google.api.server.spi.config.Api;
 import com.google.api.server.spi.config.ApiMethod;
 import com.google.api.server.spi.config.ApiNamespace;
 import com.google.api.server.spi.config.Named;
+import com.google.api.server.spi.config.Nullable;
 import com.google.api.server.spi.response.UnauthorizedException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
@@ -106,16 +107,24 @@ public class PetitionEndpoint {
 	}
 	
 	@ApiMethod(name = "getAllPetitions", httpMethod = ApiMethod.HttpMethod.GET, path="petitions")
-	public List<Entity> getAllPetitions() {
+	public List<Entity> getAllPetitions(@Nullable @Named("next") String lastkey) {
+
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 		Query q = new Query("Petition")
 				.addProjection(new PropertyProjection("title", String.class))
 				.addProjection(new PropertyProjection("description", String.class))
 				.addProjection(new PropertyProjection("counter", Long.class));
+
+		if(lastkey != null) {
+			Key petKey = KeyFactory.createKey("Petition", lastkey.trim().replaceAll("\\s+","_"));
+			Filter filterPetition = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.GREATER_THAN, petKey);
+			q.setFilter(filterPetition);
+		}
+		
 		PreparedQuery pq = datastore.prepare(q);
-		return pq.asList(FetchOptions.Builder.withDefaults());
+		return pq.asList(FetchOptions.Builder.withLimit(10));
 	}
-	
+		
 	@ApiMethod(name = "getTopPetitions", httpMethod = ApiMethod.HttpMethod.GET, path="petition/top")
 	public List<Entity> getTopPetitions() {
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();

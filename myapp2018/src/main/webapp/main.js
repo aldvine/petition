@@ -36,7 +36,7 @@ function addNotification(type, message){
 
 var main = {
 	view:function(){
-		return m("main.container",	
+		return m("main",	
 		[
 			m(Menu),
 			m(Petitions)
@@ -78,22 +78,31 @@ function isSignedIn(){
 var Menu = {
 		connected:false,
 		view:function(){
-			return m("nav.navbar",{role:"navigation","aria-label":"main-navigation"},[
-				m("div.navbar-menu",[]),
+			return m("nav.navbar is-info",{role:"navigation","aria-label":"main navigation"},[
+				
 	       		m("div.navbar-brand",[
+	       			m("a.navbar-item",[
+	       				m("span","TinyPet")
+	    			])
+	    			,m("a.navbar-item",{target:"_blank",href:"https://github.com/aldvine/petition"},[
+	       				m("a.button","Vers Github")
+		    		])
+				]),
+				m("div.navbar-menu",[
 					m("div.navbar-end",[
 						m("div.navbar-item",[
 							m("div.buttons",[
-								m("a.button is-primary sign-in-btn",{style:"display:"+(Menu.connected ? "none":"inline-flex"),onclick:function(){
+								m("a.button is-success sign-in-btn",{style:"display:"+(Menu.connected ? "none":"inline-flex"),onclick:function(){
 									signIn();
 								}},"Connexion (Google)"),
-								m("a.button is-light sign-out-btn",{style:"visibility:"+(Menu.connected ? "inline-flex":"none"),onclick:function(){
+								m("a.button is-danger sign-out-btn",{style:"visibility:"+(Menu.connected ? "inline-flex":"none"),onclick:function(){
 									signOut();
 								}},"Déconnexion")
 							])
 						])
 					])
-				])
+				]),
+				
 			]);
 		}
 }
@@ -115,10 +124,13 @@ var Petitions = {
 			// connexion google
 
 		} }, [
-			
 			m("div",[
-				m("h1", { class: "title" }, "Les pétitions"),
-				m(FormPetition),
+			
+				m("a.button is-primary is-link is-rounded", {class:(Petitions.activeView== "FormPetition" ? "":"is-outlined"), 
+					onclick: function () {
+						Petitions.activeView="FormPetition"
+					}
+				}, "Ajouter une pétition"),
 				m("a.button is-primary is-link is-rounded", {class:(Petitions.activeView== "all" ? "":"is-outlined"), 
 					onclick: function () {
 						Petitions.activeView="all"
@@ -163,15 +175,18 @@ var Petitions = {
 							    .then(function(data) {
 								    Petitions.list = data.items;
 							    });	
+							}else{
+							 	signIn();
 							}
 						}
 					}, "Mes pétitions"),
-				m("div.box",
+				m("div",
 						[
 							Petitions.activeView== "top" ? petitionTop(Petitions.list): "",
 							Petitions.activeView== "all" ? petitionAll(Petitions.list): "",
 							Petitions.activeView== "SignedByUser" ? m(SignedByUser): "",
-							Petitions.activeView== "MyPetitions" ? m(MyPetitions): ""
+							Petitions.activeView== "MyPetitions" ? m(MyPetitions): "",
+							Petitions.activeView== "FormPetition" ? m(FormPetition): ""
 					])
 			])
 			,	m("div",{style:"position:fixed; bottom:0;right:0;padding:20px;"},notificationList(notifications))])
@@ -222,7 +237,7 @@ var SignedByUser = {
 //					},"Rechercher V2"),
 				]),
 				
-				m("div.box",[
+				m("div",[
 					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
 				])
 			]);
@@ -234,7 +249,7 @@ var MyPetitions = {
 		view:function(){
 			return m("div",[
 				m("h2.subtitle","Liste de mes pétitions"),			
-				m("div.box",[
+				m("div",[
 					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
 				])
 			]);
@@ -268,10 +283,9 @@ function petitionAll(petitions){
         			m("div.content",[
         					m("p",[
 	        					m("strong",p.properties.title),
+	        					m("span", " | Signatures: "+p.properties.counter),
 	        					m("br"),
 	        					m("span",p.properties.description),
-	        					m("br"),
-	        					m("span", "Signatures: "+p.properties.counter)
 	        				]),
 	        				
 	        				buttonSignature(p),
@@ -290,10 +304,11 @@ function petitionTop(petitions){
         			m("div.content",[
         					m("p",[
 	        					m("strong",p.properties.title+" #"+(index+1)),
+	        					m("span", " | Signatures: "+p.properties.counter),
 	        					m("br"),
 	        					m("span",p.properties.description),
-	        					m("br"),
-	        					m("span", "Signatures: "+p.properties.counter)
+	        					
+	        				
 	        				]),
 	        				
 	        				buttonSignature(p),
@@ -343,7 +358,7 @@ var FormPetition = {
 	title:'',
 	description:'',
 	view: function () {
-		return m("form.box", {
+		return m("form", {
 			onsubmit: function (e) {
 				e.preventDefault()
 				if(FormPetition.title != "" && FormPetition.description!=""){
