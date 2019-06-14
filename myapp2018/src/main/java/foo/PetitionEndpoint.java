@@ -42,7 +42,7 @@ namespace = @ApiNamespace(ownerDomain = "helloworld.example.com",
 public class PetitionEndpoint {
 	
 	final static String clientsIds = "122644336388-92j45odst8ekhc91lhtj49rv4ipr8q61.apps.googleusercontent.com";
-	// authentification avec google simple https://cloud.google.com/endpoints/docs/frameworks/java/javascript-client?hl=fr
+	// authentification avec google sign in https://cloud.google.com/endpoints/docs/frameworks/java/javascript-client?hl=fr
 	
 //	@SuppressWarnings("unchecked")
 	@ApiMethod(name = "addPetition",
@@ -60,25 +60,6 @@ public class PetitionEndpoint {
 					
 					DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 					Entity pet = new Entity("Petition", petition.title.trim().replaceAll("\\s+","_")); // TODO verifier si elle n'existe pas déjà sinon elle va etre remplacé avec plus de signataires
-					
-					// Deprecated verification si user exist
-//					Key userKey = KeyFactory.createKey("User", user.getEmail());
-//					Filter f = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
-//					Query q = new Query("User").setFilter(f);
-//					PreparedQuery pq = datastore.prepare(q);
-//					Entity u =  pq.asSingleEntity();
-//				
-//					ArrayList<String> sign = new ArrayList<String>();
-//					if(u ==null) {
-//						//creation de l'utilisateur s'il n'existe pas
-//						u = new Entity("User", user.getEmail());
-//					}else {
-//						sign = (ArrayList<String>) u.getProperty("signatures");
-//					}
-//					HashSet<String> signSet = new HashSet<String>(sign);
-//					signSet.add(petition.title.trim().replaceAll("\\s+","_"));
-//					u.setProperty("signatures",signSet);
-//					datastore.put(u);
 					
 					pet.setProperty("title", petition.title);
 					pet.setProperty("description", petition.description);
@@ -110,10 +91,7 @@ public class PetitionEndpoint {
 	public List<Entity> getAllPetitions(@Nullable @Named("next") String lastkey) {
 
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-		Query q = new Query("Petition")
-				.addProjection(new PropertyProjection("title", String.class))
-				.addProjection(new PropertyProjection("description", String.class))
-				.addProjection(new PropertyProjection("counter", Long.class));
+		Query q = new Query("Petition");
 
 		if(lastkey != null) {
 			Key petKey = KeyFactory.createKey("Petition", lastkey.trim().replaceAll("\\s+","_"));
@@ -128,11 +106,7 @@ public class PetitionEndpoint {
 	@ApiMethod(name = "getTopPetitions", httpMethod = ApiMethod.HttpMethod.GET, path="petition/top")
 	public List<Entity> getTopPetitions() {
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-		Query q = new Query("Petition")
-				.addProjection(new PropertyProjection("title", String.class))
-				.addProjection(new PropertyProjection("description", String.class))
-				.addProjection(new PropertyProjection("counter", Long.class))
-				.addSort("counter", SortDirection.DESCENDING);
+		Query q = new Query("Petition").addSort("counter", SortDirection.DESCENDING);
 		PreparedQuery pq = datastore.prepare(q);
 		return pq.asList(FetchOptions.Builder.withLimit(100));
 	}
@@ -202,24 +176,6 @@ public class PetitionEndpoint {
 							signatures.setProperty("signatories", signatories);
 						}
 						
-						//deprecated verification si user exist
-//						Key userKey = KeyFactory.createKey("User", user.getEmail());
-//						Filter filterUser = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
-//						Query queryUser = new Query("User").setFilter(filterUser);
-//						Entity u = datastore.prepare(queryUser).asSingleEntity();
-//					
-//						ArrayList<String> sign = new ArrayList<String>();
-//						if(u ==null) {
-//							//creation de l'utilisateur s'il n'existe pas
-//							u = new Entity("User", user.getEmail());
-//						}else {
-//							sign = (ArrayList<String>) u.getProperty("signatures");
-//						}
-//						HashSet<String> signSet = new HashSet<String>(sign);
-//						// ajout de la pétition dans la liste de l'utilisateur
-//						signSet.add(petition.getProperty("title").toString().trim().replaceAll("\\s+","_"));
-//						u.setProperty("signatures",signSet);
-//						datastore.put(txn, u);
 						
 						//  ajouter dans le datastore la petition modifié et l'index liste des signataires OK
 						datastore.put(txn, petition);
@@ -262,30 +218,4 @@ public class PetitionEndpoint {
 		return petitions;
 	}
 	
-	
-	// Utilisation de l'entité User pas plus intéréssant pour les requêtes
-	@Deprecated
-	@SuppressWarnings("unchecked")
-	@ApiMethod(name = "getPetitionsSignedByUserV2", httpMethod = ApiMethod.HttpMethod.GET, path="user/{username}/signaturesV2")
-	public List<Entity> getPetitionsSignedByUserV2(@Named("username") String username) throws EntityNotFoundException {
-		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
-
-		Key userKey = KeyFactory.createKey("User", username);
-		Filter filterUser = new FilterPredicate(Entity.KEY_RESERVED_PROPERTY, FilterOperator.EQUAL, userKey);
-		Query queryUser = new Query("User").setFilter(filterUser);
-		Entity u = datastore.prepare(queryUser).asSingleEntity();
-		
-		ArrayList<Entity> petitions = new ArrayList<Entity>();
-		if(u!= null) {	
-			// recuperation des id des petitions signé par l'utilisateur
-			ArrayList<String> signatures= new ArrayList<String>();
-			signatures = (ArrayList<String>) u.getProperty("signatures");			
-			for (String s : signatures) {
-				Key petitionKey = KeyFactory.createKey("Petition",s);
-				petitions.add(datastore.get(petitionKey));			
-			}
-		}
-		return petitions;
-	
-	}
 }

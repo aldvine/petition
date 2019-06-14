@@ -1,8 +1,0 @@
-indexes:
-- kind: Petition
-  properties:
-  - name: __key__
-  - name: counter
-    direction: desc
-  - name: description
-  - name: title

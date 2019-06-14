@@ -36,7 +36,7 @@ function addNotification(type, message){
 
 var main = {
 	view:function(){
-		return m("main",	
+		return m("main.has-background-light",	
 		[
 			m(Menu),
 			m(Petitions)
@@ -86,23 +86,16 @@ var Menu = {
 	    			])
 	    			,m("a.navbar-item",{target:"_blank",href:"https://github.com/aldvine/petition"},[
 	       				m("a.button","Vers Github")
-		    		])
-				]),
-				m("div.navbar-menu",[
-					m("div.navbar-end",[
-						m("div.navbar-item",[
-							m("div.buttons",[
-								m("a.button is-success sign-in-btn",{style:"display:"+(Menu.connected ? "none":"inline-flex"),onclick:function(){
-									signIn();
-								}},"Connexion (Google)"),
-								m("a.button is-danger sign-out-btn",{style:"visibility:"+(Menu.connected ? "inline-flex":"none"),onclick:function(){
-									signOut();
-								}},"Déconnexion")
-							])
-						])
+		    		]),
+		    		m("div.buttons",[
+						m("a.button is-success sign-in-btn",{style:"display:"+(Menu.connected ? "none":"inline-flex"),onclick:function(){
+							signIn();
+						}},"Connexion (Google)"),
+						m("a.button is-danger sign-out-btn",{style:"visibility:"+(Menu.connected ? "inline-flex":"none"),onclick:function(){
+							signOut();
+						}},"Déconnexion")
 					])
 				]),
-				
 			]);
 		}
 }
@@ -134,6 +127,7 @@ var Petitions = {
 				m("a.button is-primary is-link is-rounded", {class:(Petitions.activeView== "all" ? "":"is-outlined"), 
 					onclick: function () {
 						Petitions.activeView="all"
+						Petitions.list=[]
 						 m.request({
 						        method: "GET",
 						        url: root+"/petitions",
@@ -146,6 +140,7 @@ var Petitions = {
 				}, "Toutes les pétitions"),
 				m("a.button is-link is-rounded ", { class:(Petitions.activeView== "top" ? "":"is-outlined"), 
 					onclick: function () {
+						Petitions.list=[]
 						 Petitions.activeView="top"
 						 m.request({
 						        method: "GET",
@@ -170,7 +165,7 @@ var Petitions = {
 								var user = gapi.auth2.getAuthInstance().currentUser.get();
 								m.request({
 							        method: "GET",
-							        url: root+"/user/"+user.getBasicProfile().getEmail()+"/signatures"
+							        url: root+"/user/"+encodeURIComponent(user.getBasicProfile().getEmail())+"/signatures"
 							    })
 							    .then(function(data) {
 								    Petitions.list = data.items;
@@ -180,7 +175,7 @@ var Petitions = {
 							}
 						}
 					}, "Mes pétitions"),
-				m("div",
+				m("div.section",
 						[
 							Petitions.activeView== "top" ? petitionTop(Petitions.list): "",
 							Petitions.activeView== "all" ? petitionAll(Petitions.list): "",
@@ -212,7 +207,7 @@ var SignedByUser = {
 							if(SignedByUser.username !=""){
 								m.request({
 							        method: "GET",
-							        url: root+"/user/"+SignedByUser.username+"/signatures"
+							        url: root+"/user/"+encodeURIComponent(SignedByUser.username)+"/signatures"
 							    })
 							    .then(function(data) {
 								    Petitions.list = data.items;
@@ -221,24 +216,10 @@ var SignedByUser = {
 							 
 						}
 					},"Rechercher"),
-//					m("a.button is-success [type=text]",{
-//						onclick:function(){
-//							if(SignedByUser.username !=""){
-//								m.request({
-//							        method: "GET",
-//							        url: root+"/user/"+SignedByUser.username+"/signaturesV2"
-//							    })
-//							    .then(function(data) {
-//								    Petitions.list = data.items;
-//							    });	
-//							}
-//							 
-//						}
-//					},"Rechercher V2"),
 				]),
 				
 				m("div",[
-					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
+					Petitions.list.length >0 ?petitionList(Petitions.list) : "Aucune pétition à afficher"
 				])
 			]);
 		}
@@ -250,7 +231,7 @@ var MyPetitions = {
 			return m("div",[
 				m("h2.subtitle","Liste de mes pétitions"),			
 				m("div",[
-					Petitions.list.length >0 ?petitionAll(Petitions.list) : "Aucune pétition à afficher"
+					Petitions.list.length >0 ?petitionList(Petitions.list) : "Aucune pétition à afficher"
 				])
 			]);
 		}
@@ -274,49 +255,92 @@ function notificationList(notifs){
 	});
 }
 
-function petitionAll(petitions){
-	return petitions.map(function(p,index) {
-        	
-      return   m("div.box", [
-        	m("article.media",[
-        		m("div.media-content",[
-        			m("div.content",[
-        					m("p",[
-	        					m("strong",p.properties.title),
-	        					m("span", " | Signatures: "+p.properties.counter),
-	        					m("br"),
-	        					m("span",p.properties.description),
-	        				]),
-	        				
-	        				buttonSignature(p),
-        			])
-        		])
-        	])
-        ])
-    })
+function petitionAll(){
+	return m("div", [
+		m("a.button is-primary",{
+			onclick:function(){
+				console.log(Petitions.list);
+				var lastPetitionName = Petitions.list[Petitions.list.length - 1].key.name;
+				 m.request({
+				        method: "GET",
+				        url: root+"/petitions",
+				    })
+				    .then(function(data) {
+					    	Petitions.list = data.items;
+				    })
+			}
+		}, "Rafraichir la liste"),
+		m("a.button is-info",{
+			onclick:function(){
+				console.log(Petitions.list);
+				var lastPetitionName = Petitions.list[Petitions.list.length - 1].key.name;
+				 m.request({
+				        method: "GET",
+				        url: root+"/petitions?next="+encodeURIComponent(lastPetitionName),
+				    })
+				    .then(function(data) {
+				    	if(data.items.length>0){
+					    	Petitions.list = data.items;
+				    	}
+				    })
+			}
+		}, "Suivant"),
+		petitionList(Petitions.list),
+		
+    ])
+}
+
+function petitionList(petitions){
+	return m("div",
+			m("table.table  is-fullwidth",[
+				m("thead",[
+			       	m("tr", [
+					m("th","Titre"),
+					m("th","Signatures"),
+					m("th","Description"),
+					m("th","Action"),
+			        ])
+				]),
+				m("tbody",[
+					petitions.map(function(p,index) {
+				      return   m("tr", [
+							m("th",p.properties.title),
+							m("td",p.properties.counter),
+							m("td",p.properties.description),
+							m("td",buttonSignature(p)),
+				        ])
+				    })
+				])
+				
+			])
+		)
 }
 function petitionTop(petitions){
-	return petitions.map(function(p,index) {
-        	
-      return   m("div.box", [
-        	m("article.media",[
-        		m("div.media-content",[
-        			m("div.content",[
-        					m("p",[
-	        					m("strong",p.properties.title+" #"+(index+1)),
-	        					m("span", " | Signatures: "+p.properties.counter),
-	        					m("br"),
-	        					m("span",p.properties.description),
-	        					
-	        				
-	        				]),
-	        				
-	        				buttonSignature(p),
-        			])
-        		])
-        	])
-        ])
-    })
+	return m("div",
+			m("table.table  is-fullwidth",[
+				m("thead",[
+			       	m("tr", [
+			       	m("th","TOP"),
+					m("th","Titre"),
+					m("th","Signatures"),
+					m("th","Description"),
+					m("th","Action"),
+			        ])
+				]),
+				m("tbody",[
+					petitions.map(function(p,index) {
+				      return   m("tr", [
+				    	  	m("th"," #"+(index+1)),
+							m("th",p.properties.title),
+							m("td",p.properties.counter),
+							m("td",p.properties.description),
+							m("td",buttonSignature(p)),
+				        ])
+				    })
+				])
+				
+			])
+		)
 }
 function buttonSignature (p){
 	var hideButton=false;	
