@@ -15,7 +15,7 @@ https://cloud-miage.appspot.com/populate
 # Schema
 ![Alt text](/kind_Petition.PNG?raw=true "Kind Petition")
 Sur la capture d'écran, nous voyons en rouge une pétition ayant atteint plus de 5000 signature.
-signaturesIndex permet de stocker la liste des signataires qui n'est pas remplie. 
+Le champ signaturesIndex permet de stocker la liste des signataires qui n'est pas remplie. 
 
 ![Alt text](/kind_Signatures.png?raw=true "Kind Petition")
 En rouge, on remarque les deux listes de signataires qui sont de la même pétition, lorsqu'une liste est complète (5000 dans notre cas),  on crée une nouvelle liste et le champ signaturesIndex de Petition se met à jour. 
