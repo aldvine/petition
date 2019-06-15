@@ -24,7 +24,7 @@ En rouge, on remarque les deux listes de signataires qui sont de la même pétit
 Sur l'application une authentification est nécéssaire pour ajouter une pétition et signer une petition. 
 L'adresse mail du compte google sert d'utilisateur
 
-Pour faire fonctionner l'application sur remplacez la constante "clientIds" du fichier petitionEndpoint.java et le client-id de la fonction initGoogleAuth par celui correspondant pour autoriser la connexion via un compte google
+Pour faire fonctionner l'application sur un autre projet AppEngine remplacez la constante "clientIds" du fichier petitionEndpoint.java et le client-id de la fonction initGoogleAuth par celui correspondant pour autoriser la connexion via un compte google
 
 ID clients OAuth 2.0: 
 https://console.cloud.google.com/apis/credentials
